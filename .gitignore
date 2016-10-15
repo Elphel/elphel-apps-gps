@@ -1,0 +1,17 @@
+html/*
+attic/*
+/.project
+/.cproject
+/.pydevproject
+/.externalToolBuilders
+/.settings
+.directory
+generated*
+sysroots
+bitbake-logs
+/temp
+*.o
+image
+src/nmea2exif
+src/log_imu
+src/.depend
