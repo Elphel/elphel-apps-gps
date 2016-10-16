@@ -49,8 +49,8 @@
 
 //#define EXIF_DEV "/dev/exif_meta"
 #define PROGRAM_SERIAL 0
-//#define D(x)
-#define D(x) x
+#define D(x)
+//#define D(x) x
 
 // TODO: use only existing sensor channels?
 const char *exif_paths[SENSOR_PORTS] = {
@@ -345,7 +345,37 @@ void process_GPGGA(char*response, struct meta_GPSInfo_t *meta) {
 /// Skip 14   = Diff. reference station ID#
 }
 
-
+void debug_meta(struct meta_GPSInfo_t *meta)
+{
+    unsigned char * buf = (unsigned char *) meta;
+    int i;
+    printf("GPSLatitudeRef         %c)\n",   meta->GPSLatitudeRef);
+    printf("GPSLatitude_deg_nom    0x%x)\n",__be32_to_cpu(meta->GPSLatitude_deg_nom));
+    printf("GPSLatitude_deg_denom  0x%x)\n",__be32_to_cpu(meta->GPSLatitude_deg_denom));
+    printf("GPSLatitude_min_nom    0x%x)\n",__be32_to_cpu(meta->GPSLatitude_min_nom));
+    printf("GPSLatitude_min_denom  0x%x)\n",__be32_to_cpu(meta->GPSLatitude_min_denom));
+    printf("GPSLongitudeRef        %c)\n",   meta->GPSLongitudeRef);
+    printf("GPSLongitude_deg_nom   0x%x)\n",__be32_to_cpu(meta->GPSLongitude_deg_nom));
+    printf("GPSLongitude_deg_denom 0x%x)\n",__be32_to_cpu(meta->GPSLongitude_deg_denom));
+    printf("GPSLongitude_min_nom   0x%x)\n",__be32_to_cpu(meta->GPSLongitude_min_nom));
+    printf("GPSLongitude_min_denom 0x%x)\n",__be32_to_cpu(meta->GPSLongitude_min_denom));
+    printf("GPSAltitudeRef         %c)\n",   meta->GPSAltitudeRef);
+    printf("GPSAltitude_nom        0x%x)\n",__be32_to_cpu(meta->GPSAltitude_nom));
+    printf("GPSAltitude_denom      0x%x)\n",__be32_to_cpu(meta->GPSAltitude_denom));
+    printf("GPSTimeStamp_hrs_nom   0x%x)\n",__be32_to_cpu(meta->GPSTimeStamp_hrs_nom));
+    printf("GPSTimeStamp_hrs_denom 0x%x)\n",__be32_to_cpu(meta->GPSTimeStamp_hrs_denom));
+    printf("GPSTimeStamp_min_nom   0x%x)\n",__be32_to_cpu(meta->GPSTimeStamp_min_nom));
+    printf("GPSTimeStamp_min_denom 0x%x)\n",__be32_to_cpu(meta->GPSTimeStamp_min_denom));
+    printf("GPSTimeStamp_sec_nom   0x%x)\n",__be32_to_cpu(meta->GPSTimeStamp_sec_nom));
+    printf("GPSTimeStamp_sec_denom 0x%x)\n",__be32_to_cpu(meta->GPSTimeStamp_sec_denom));
+    printf("GPSDateStamp           %s)\n",   meta->GPSDateStamp);
+    printf("GPSMeasureMode         %c)",     meta->GPSMeasureMode);
+    for (i = 0; i < sizeof (struct meta_GPSInfo_t); i++){
+        if ((i & 0xf) == 0) printf("\n%02x:",i);
+        printf(" %02x",(int) buf[i]);
+    }
+    printf("\n");
+}
 
 
 
@@ -373,8 +403,8 @@ int main(int argc, char *argv[]) {
            fd_exif[chn] = open(exif_paths[chn], O_RDWR);
            if (fd_exif[chn] < 0) {
                fprintf(stderr,"Can not open device file %s\n",exif_paths[chn]);
-           }
-       } else good_chns++;
+           } else good_chns++;
+       }
    }
    if (!good_chns){
        fprintf(stderr,"Could not open any of EXIF channel device files, aborting\n");
@@ -434,14 +464,19 @@ int main(int argc, char *argv[]) {
 //               D(printf ("Got GPRMC\n"));
                D(printf ("Got NMEA string >>%s<<\n",response+1));
                process_GPRMC(response, &meta);
+               D(printf ("sizeof(meta)=0x%x\n",sizeof(meta)));
+               D(debug_meta(&meta));
                for (chn =0; chn < SENSOR_PORTS; chn++) if (fd_exif[chn]>=0){
                    lseek (fd_exif[chn],Exif_GPSInfo_GPSLatitudeRef,SEEK_END); /// position file pointer at the beginning of the data field for GPSLatitudeRef
+                   D(printf ("filepos(%d)=0x%x\n",chn, (int)lseek (fd_exif[chn],0,SEEK_CUR)));
                    write (fd_exif[chn], &meta, sizeof(meta));
                }
              } else if (!memcmp(response+1,"GPGGA", sizeof("GPGGA")-1)) {
 //               D(printf ("Got GPRMC\n"));
                D(printf ("Got NMEA string >>%s<<\n",response+1));
                process_GPGGA(response, &meta);
+               D(printf ("sizeof(meta)=0x%x\n",sizeof(meta)));
+               D(debug_meta(&meta));
                for (chn =0; chn < SENSOR_PORTS; chn++) if (fd_exif[chn]>=0){
                    lseek (fd_exif[chn],Exif_GPSInfo_GPSLatitudeRef,SEEK_END); /// position file pointer at the beginning of the data field for GPSLatitudeRef
                    write (fd_exif[chn], &meta, sizeof(meta));
