@@ -1,56 +1,56 @@
 #!/usr/bin/env php
 <?php
 /*
-*! FILE NAME  : start_gps_compass.php
-*! DESCRIPTION: Looks for USB GPS (currently Garmin GPS 18 USB) and compass
-*!              (currently Ocean Server OS-5000), re-initializes Exif header
-*!              and starts the devices if found
-*!
-*! Copyright (C) 2008 Elphel, Inc
-*! -----------------------------------------------------------------------------**
-*!
-*!  This program is free software: you can redistribute it and/or modify
-*!  it under the terms of the GNU General Public License as published by
-*!  the Free Software Foundation, either version 3 of the License, or
-*!  (at your option) any later version.
-*!
-*!  This program is distributed in the hope that it will be useful,
-*!  but WITHOUT ANY WARRANTY; without even the implied warranty of
-*!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*!  GNU General Public License for more details.
-*!
-*!  You should have received a copy of the GNU General Public License
-*!  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*! -----------------------------------------------------------------------------**
-*!  $Log: start_gps_compass.php,v $
-*!  Revision 1.6  2012/03/14 00:05:41  elphel
-*!  8.2.1 - GPS speed, x353.bit file tested on Eyesis
-*!
-*!  Revision 1.5  2011/08/13 00:55:14  elphel
-*!  support for detection 103595 and 103696 boards, programming the logger
-*!
-*!  Revision 1.4  2011/01/15 23:22:10  elphel
-*!  added 19200
-*!
-*!  Revision 1.3  2009/02/20 21:49:52  elphel
-*!  bugfix - was killing daemons after detection, not before (as should)
-*!
-*!  Revision 1.2  2009/02/19 22:38:37  elphel
-*!  8.0.2.3 - added several USB serial adapters, nmea->exif support, detection of NMEA GPS at boot
-*!
-*!  Revision 1.1.1.1  2008/11/27 20:04:01  elphel
-*!
-*!
-*!  Revision 1.2  2008/11/20 07:03:40  elphel
-*!  exit value now encodes detected devices
-*!
-*!  Revision 1.1  2008/04/07 09:14:47  elphel
-*!  Discover/startup GPS and compass
-*!
-*/
-//look uptime, sleep if just started (no USB yet)
-//require '/usr/html/includes/i2c.inc';
-#require 'i2c.inc';
+ * ! FILE NAME : start_gps_compass.php
+ * ! DESCRIPTION: Looks for USB GPS (currently Garmin GPS 18 USB) and compass
+ * ! (currently Ocean Server OS-5000), re-initializes Exif header
+ * ! and starts the devices if found
+ * !
+ * ! Copyright (C) 2008 Elphel, Inc
+ * ! -----------------------------------------------------------------------------**
+ * !
+ * ! This program is free software: you can redistribute it and/or modify
+ * ! it under the terms of the GNU General Public License as published by
+ * ! the Free Software Foundation, either version 3 of the License, or
+ * ! (at your option) any later version.
+ * !
+ * ! This program is distributed in the hope that it will be useful,
+ * ! but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * ! GNU General Public License for more details.
+ * !
+ * ! You should have received a copy of the GNU General Public License
+ * ! along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * ! -----------------------------------------------------------------------------**
+ * ! $Log: start_gps_compass.php,v $
+ * ! Revision 1.6 2012/03/14 00:05:41 elphel
+ * ! 8.2.1 - GPS speed, x353.bit file tested on Eyesis
+ * !
+ * ! Revision 1.5 2011/08/13 00:55:14 elphel
+ * ! support for detection 103595 and 103696 boards, programming the logger
+ * !
+ * ! Revision 1.4 2011/01/15 23:22:10 elphel
+ * ! added 19200
+ * !
+ * ! Revision 1.3 2009/02/20 21:49:52 elphel
+ * ! bugfix - was killing daemons after detection, not before (as should)
+ * !
+ * ! Revision 1.2 2009/02/19 22:38:37 elphel
+ * ! 8.0.2.3 - added several USB serial adapters, nmea->exif support, detection of NMEA GPS at boot
+ * !
+ * ! Revision 1.1.1.1 2008/11/27 20:04:01 elphel
+ * !
+ * !
+ * ! Revision 1.2 2008/11/20 07:03:40 elphel
+ * ! exit value now encodes detected devices
+ * !
+ * ! Revision 1.1 2008/04/07 09:14:47 elphel
+ * ! Discover/startup GPS and compass
+ * !
+ */
+// look uptime, sleep if just started (no USB yet)
+// require '/usr/html/includes/i2c.inc';
+// require 'i2c.inc';
 set_include_path ( get_include_path () . PATH_SEPARATOR . '/www/pages/include' );
 require 'i2c_include.php';
 $config_name = '/etc/elphel393/imu_logger.xml';
@@ -64,6 +64,7 @@ $b_index = indexGrandDaughters ( $ids );
 // print_r($ids);
 // print_r($b_index);
 $baud = null;
+$binfile = "/var/imu_config.bin"; // comment out if not needed - debug feature
 if (isset ( $b_index [103696] )) {
 	$baud = $ids [$b_index [103696]] ['baud'];
 	if ($baud === 0)
@@ -151,11 +152,15 @@ if (isset ( $logger_config )) {
 $noGPS = ($compass || $GPS) ? "" : "noGPS";
 $nocompass = ($compass) ? "" : "nocompass";
 
-
 // Just debugging:
-//$nocompass = "";
+$nocompass = "";
 
-$cmd = $exif_php." init $noGPS $nocompass";
+/*
+ * Actually there is a problem - when compass is disabled, imgsrv incorrectly decodes meta (image number, sensor number)
+ * Even if re-srated after running exif.php
+ */
+
+$cmd = $exif_php . " init $noGPS $nocompass";
 if ($verbose)
 	echo "Initializing Exif template: $cmd\n";
 exec ( $cmd );
@@ -163,9 +168,9 @@ if ($GPS) {
 	if ($verbose)
 		echo "Starting " . $GPS ["name"] . " as " . $GPS ["file"] . "\n";
 	if (strpos ( $GPS ['name'], 'NMEA' ) !== false) {
-		$cmd = $bindir."nmea2exif " . $GPS ["file"] . " &";
+		$cmd = $bindir . "nmea2exif " . $GPS ["file"] . " &";
 	} else {
-		$cmd = $bindir."garminusb2exif " . $GPS ["file"] . " &"; // BUG: Not ported!
+		$cmd = $bindir . "garminusb2exif " . $GPS ["file"] . " &"; // BUG: Not ported!
 	}
 	if ($verbose)
 		echo "exec: $cmd \n";
@@ -175,7 +180,7 @@ if ($compass) {
 	if ($verbose)
 		echo "Starting " . $compass ["name"] . " as " . $compass ["file"] . "\n";
 	exec ( "stty -F " . $compass ["file"] . " -echo speed 19200" );
-	$cmd = $bindir."compass " . $compass ["file"] . " &";
+	$cmd = $bindir . "compass " . $compass ["file"] . " &";
 	if ($verbose)
 		echo "exec: $cmd \n";
 	popen ( $cmd, "r" );
@@ -297,7 +302,7 @@ function find_gps_compass($baud = null, $timeout = 5) {
 						exec ( $cmd );
 						unset ( $fullOutput );
 						exec ( 'timeout ' . $timeout . ' cat /dev/' . $dev, $fullOutput ); // &$fullOutput - Fatal error: Call-time pass-by-reference has been removed in php
-						                                                           // var_dump($fullOutput);
+						                                                                   // var_dump($fullOutput);
 						foreach ( $fullOutput as $line )
 							if (strpos ( $line, '$GP' ) === 0) {
 								$gpsPresent = true;
@@ -468,8 +473,7 @@ function init_default_config() {
 					0x70, // time m/s
 					0x72, // time d/h
 					0x74 
-			) // time y/m
-,
+			), // time y/m
 			'nmea' => array (
 					// / first three letters - sentence to log (letters after "$GP"). next "n"/"b" (up to 24 total) - "n" number (will be encoded 4 digits/byte, follwed by "0xF"
 					// / "b" - byte - all but last will have MSB 0 (& 0x7f), the last one - with MSB set (| 0x80). If there are no characters in the field 0xff will be output
@@ -491,8 +495,8 @@ function init_default_config() {
 					) 
 			),
 			'message' => 'Odometer message' 
-	) // Message - up to 56 bytes
-;
+	); // Message - up to 56 bytes
+
 	return $default_config;
 }
 /**
@@ -516,7 +520,7 @@ function combineLoggerConfigs($new_conf, $dflt = null) {
 	
 	while ( count ( $conf ['imu_registers'] ) < 28 )
 		$conf ['imu_registers'] [count ( $conf ['imu_registers'] )] = 0; // zero pad if less than 28 registers
-			                                                                                                  // / Configure NMEA sentences to log. If there are less than 4 - copy additional (unique) from defaults
+			                                                                 // / Configure NMEA sentences to log. If there are less than 4 - copy additional (unique) from defaults
 	while ( count ( $conf ['nmea'] ) < 4 ) {
 		for($i = 0; $i < 4; $i ++) {
 			$new = true;
@@ -539,7 +543,7 @@ function combineLoggerConfigs($new_conf, $dflt = null) {
 	return $conf;
 }
 function setup_IMU_logger($conf) {
-	global $verbose;
+	global $verbose, $binfile;
 	// $xclk_freq=80000000; // 80 MHz in NC353
 	$xclk_freq = 100000000; // 100 MHz in NC393
 	$data = array ();
@@ -582,13 +586,13 @@ function setup_IMU_logger($conf) {
 	// / #define IMUCR__IMU_SLOT__BITNM 0 // slot, where 103695 (imu) board is connected: 0 - none, 1 - J9, 2 - J10, 3 - J11)
 	// / #define IMUCR__IMU_SLOT__WIDTH 2
 	$logger_conf |= (($conf ['imu_slot'] & 0x3) | 0x4) << 0; // / "4" (bit 2 set) here means that the data in bits 0,1 will be applied in the FPGA register
-	                                                        
+	                                                         
 	// / #define IMUCR__GPS_CONF__BITNM 3 // slot, where 103695 (imu) bnoard is connected: 0 - none, 1 - J9, 2 - J10, 3 - J11)
-	                                                        // / #define IMUCR__GPS_CONF__WIDTH 4 // bits 0,1 - slot #, same as for IMU_SLOT, bits 2,3:
-	                                                        // 0 - ext pulse, leading edge,
-	                                                        // 1 - ext pulse, trailing edge
-	                                                        // 2 - start of the first rs232 character after pause
-	                                                        // 3 - start of the last "$" character (start of each NMEA sentence)
+	                                                         // / #define IMUCR__GPS_CONF__WIDTH 4 // bits 0,1 - slot #, same as for IMU_SLOT, bits 2,3:
+	                                                         // 0 - ext pulse, leading edge,
+	                                                         // 1 - ext pulse, trailing edge
+	                                                         // 2 - start of the first rs232 character after pause
+	                                                         // 3 - start of the last "$" character (start of each NMEA sentence)
 	$logger_conf |= ((($conf ['gps_slot'] & 0x3) | (($conf ['gps_mode'] & 0x3) << 2)) | 0x10) << 3;
 	// / #define IMUCR__MSG_CONF__BITNM 8 // source of external pulses to log:
 	// / #define IMUCR__MSG_CONF__WIDTH 5 // bits 0-3 - number of fpga GPIO input 0..11 (i.e. 0x0a - external optoisolated sync input (J15)
@@ -610,12 +614,12 @@ function setup_IMU_logger($conf) {
 	// / (DFLT_SLAVE_ADDR << 24))
 	$logger_conf |= ($conf ['slow_spi'] & 0x1) << 23;
 	$logger_conf |= ($conf ['imu_sa'] & 0x7) << 24;
-	$data [$index ++] = $logger_conf & 0xff;
+	$data [$index ++] = $logger_conf & 0xff;                // DWORD 0x03
 	$data [$index ++] = ($logger_conf >> 8) & 0xff;
 	$data [$index ++] = ($logger_conf >> 16) & 0xff;
 	$data [$index ++] = ($logger_conf >> 24) & 0xff;
 	// / Set time driver will go to sleep if the data is not ready yet (less than full sample in the buffer)
-	$data [$index ++] = $conf ['sleep_busy'] & 0xff;
+	$data [$index ++] = $conf ['sleep_busy'] & 0xff;        // DWORD 0x04 (software only)   
 	$data [$index ++] = ($conf ['sleep_busy'] >> 8) & 0xff;
 	$data [$index ++] = ($conf ['sleep_busy'] >> 16) & 0xff;
 	$data [$index ++] = ($conf ['sleep_busy'] >> 24) & 0xff;
@@ -623,8 +627,8 @@ function setup_IMU_logger($conf) {
 	// echo "1\n";
 	for($i = 0; $i < 28; $i ++)
 		$data [$index ++] = $conf ['imu_registers'] [$i]; // truncate to 28
-			                                                                   // / Configure NMEA sentences to log. If there are less than 4 - copy additional (unique) from defaults
-			                                                                   // echo "2\n";
+			                                                  // / Configure NMEA sentences to log. If there are less than 4 - copy additional (unique) from defaults
+			                                                  // echo "2\n";
 	for($i = 0; $i < 4; $i ++) {
 		$d = str_split ( $conf ['nmea'] [$i] [0] );
 		// print_r($d);
@@ -660,6 +664,13 @@ function setup_IMU_logger($conf) {
 	fwrite ( $dev_imu_ctl, $bindata, strlen ( $bindata ) );
 	fseek ( $dev_imu_ctl, 3, SEEK_END ); // start IMU
 	fclose ( $dev_imu_ctl );
+	
+	if (isset($binfile)){
+		$dev_imu_ctl = fopen ( $binfile, 'w' );
+		fwrite ( $dev_imu_ctl, $bindata, strlen ( $bindata ) );
+		fclose ( $dev_imu_ctl );
+	}
+	
 	// / Readback - just testing
 	$bd = file_get_contents ( '/dev/imu_ctl' );
 	$data = str_split ( $bd );
@@ -674,11 +685,7 @@ function setup_IMU_logger($conf) {
 	}
 }
 
-
-
-
-  
-//ls /sys/bus/usb-serial/devices/ttyUSB0/driver -l
-//         $xml->addChild ('error','No sync capable board detected, use "role=self" for the onboard timer');
-//    $sxml=$xml->asXML();
+// ls /sys/bus/usb-serial/devices/ttyUSB0/driver -l
+// $xml->addChild ('error','No sync capable board detected, use "role=self" for the onboard timer');
+// $sxml=$xml->asXML();
 ?>
