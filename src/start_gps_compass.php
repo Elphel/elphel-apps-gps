@@ -71,7 +71,6 @@ if (isset ( $b_index [103696] )) {
 		$baud == 'auto';
 }
 
-// exit (0);
 $wait_time = 20; // wait for $wait_time if both devices were not found, retry
 $compass = null;
 $GPS = null;
@@ -151,14 +150,6 @@ if (isset ( $logger_config )) {
 // echo "GPS: ";var_dump($GPS);echo "\n";
 $noGPS = ($compass || $GPS) ? "" : "noGPS";
 $nocompass = ($compass) ? "" : "nocompass";
-
-// Just debugging:
-$nocompass = "";
-
-/*
- * Actually there is a problem - when compass is disabled, imgsrv incorrectly decodes meta (image number, sensor number)
- * Even if re-srated after running exif.php
- */
 
 $cmd = $exif_php . " init $noGPS $nocompass";
 if ($verbose)
