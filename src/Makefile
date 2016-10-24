@@ -13,7 +13,7 @@ PROGS     = nmea2exif log_imu
 SRCS =      nmea2exif.c log_imu.c
 OBJS =      nmea2exif.o
 PHPSCRIPTS= start_gps_compass.php
-PHPWEB=     logger_launcher.php imu_setup.php
+PHPWEB=     logger_launcher.php imu_setup.php read_imu_log.php
 
 CFLAGS   += -Wall -I$(STAGING_DIR_HOST)/usr/include-uapi
 LDLIBS   += -lm

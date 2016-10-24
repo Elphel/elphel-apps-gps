@@ -434,8 +434,8 @@ function init_default_config() {
 			'imu_slot' => 1,
 			'gps_slot' => 2,
 			'gps_mode' => 2, // 0 - pps pos, 1 - pps neg, 2 - start of first sesntence after pause, 3 start of sentence
-			'msg_conf' => 10, // GPIO bit number for external (odometer) input (+16 - invert polarity). Timestamp uses leading edge, software may write to 56-byte buffer before the trailing edge
-			'img_sync' => 1, // enable logging image acquisition starts (0 - disable)
+			'msg_conf' => 6, // 10, // GPIO bit number for external (odometer) input (+16 - invert polarity). Timestamp uses leading edge, software may write to 56-byte buffer before the trailing edge
+			'img_sync' => 0xf, // enable logging image acquisition starts (0 - disable), bit per channel
 			'extra_conf' => 4, // 0 - config_long_sda_en, 1 -config_late_clk, 2 - config_single_wire, should be set for 103695 rev "A"
 			'slow_spi' => 0, // set to 1 for slow SPI devices (0 for ADIS-16375)
 			'imu_sa' => 3, // i2c slave address modifier for the 103695A pca9500
@@ -602,18 +602,27 @@ function setup_IMU_logger($conf) {
 	$logger_conf |= (($conf ['msg_conf'] & 0x1f) | 0x20) << 8;
 	// / #define IMUCR__SYN_CONF__BITNM 14 // logging frame time stamps (may be synchronized by another camera and have timestamp of that camera)
 	// / #define IMUCR__SYN_CONF__WIDTH 1 // 0 - disable, 1 - enable
-	$logger_conf |= (($conf ['img_sync'] & 0x1) | 0x2) << 14;
-	// / #define IMUCR__RST_CONF__BITNM 16 // reset module
+///	$logger_conf |= (($conf ['img_sync'] & 0x1) | 0x2) << 14;
+	//NC393 - per channel
+	$logger_conf |= (($conf ['img_sync'] & 0xf) | 0x10) << 14;
+	
+	
+	// / #define  IMUCR__RST_CONF__BITNM 19   ///< reset module // was 16 in NC353
 	// / #define IMUCR__RST_CONF__WIDTH 1 // 0 - enable, 1 -reset (needs resettimng DMA address in ETRAX also)
 	
-	// / #define IMUCR__DBG_CONF__BITNM 18 // several extra IMU configuration bits
+	// / #define  IMUCR__DBG_CONF__BITNM 21   ///< several axtra IMU configuration bits (was 18 for NC353)
 	// / #define IMUCR__DBG_CONF__WIDTH 4 // 0 - config_long_sda_en, 1 -config_late_clk, 2 - config_single_wire, should be set for 103695 rev "A"
-	$logger_conf |= (($conf ['extra_conf'] & 0xf) | 0x10) << 18;
+	$logger_conf |= (($conf ['extra_conf'] & 0xf) | 0x10) << 21; // was 18 in NC353;
 	// / next bits used by the driver only, not the FPGA
 	// / ((SLOW_SPI & 1)<<23) | \
 	// / (DFLT_SLAVE_ADDR << 24))
-	$logger_conf |= ($conf ['slow_spi'] & 0x1) << 23;
-	$logger_conf |= ($conf ['imu_sa'] & 0x7) << 24;
+	//#define  IMUCR__SLOW_SPI__BITNM 26   ///< just for the driver, not written to FPGA (was 23 for NC353)
+	//#define  IMUCR__SLOW_SPI__WIDTH 1    ///< 0 - normal, 1 - slow SPI (programmed over i2c)
+	$logger_conf |= ($conf ['slow_spi'] & 0x1) << 26; // was 23 for NC353
+	// #define  IMUCR__I2C_SA3__BITNM 28    ///< Low 3 bits of the SA7 of the PCA9500 slave address
+	// #define  IMUCR__I2C_SA3__WIDTH 3     ///< Should match jumpers
+	$logger_conf |= ($conf ['imu_sa'] & 0x7) << 28; // was 24 for NC353
+	
 	$data [$index ++] = $logger_conf & 0xff;                // DWORD 0x03
 	$data [$index ++] = ($logger_conf >> 8) & 0xff;
 	$data [$index ++] = ($logger_conf >> 16) & 0xff;
