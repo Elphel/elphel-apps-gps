@@ -64,7 +64,7 @@ $b_index = indexGrandDaughters ( $ids );
 // print_r($ids);
 // print_r($b_index);
 $baud = null;
-$binfile = "/var/imu_config.bin"; // comment out if not needed - debug feature
+//$binfile = "/var/imu_config.bin"; // comment out if not needed - debug feature
 if (isset ( $b_index [103696] )) {
 	$baud = $ids [$b_index [103696]] ['baud'];
 	if ($baud === 0)

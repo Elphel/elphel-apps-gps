@@ -6,7 +6,8 @@ if (!isset($_GET['file'])){
   exit (0);
 }
 
-$timeShift = 21600;
+//$timeShift = 21600; // 6 hrs
+$timeShift = 0; // 6 hrs
 
 $file=$_GET['file'];
 $numRecordsInFile=filesize($file)/64;
@@ -63,7 +64,7 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
   global $timeShift;
 
   global $averageIMU;
-  $showAll=($nSamples<=10000);
+  $showAll=($nSamples<=100000);
   $gpsFilter= $filter&0xf;
   $typeFilter=(($gpsFilter!=0)?2:0) | ((($filter&0x10)!=0)?1:0) | ((($filter&0x20)!=0)?4:0) | ((($filter&0x20)!=0)?8:0);
   fseek($handle,64*$record,SEEK_SET);
@@ -126,7 +127,8 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
 	// Master (Sync) record
         case 2:
           $masterTime=(($arr32[3]&0xfffff)/1000000)+$arr32[4];
-          echo "MasterTimeStamp: <b>".($masterTime+$timeShift)."</b> TimeStamp: <b>".($time+$timeShift)."</b>   MasterTimeStamp(precise): 0x".dechex($arr32[4])."+".dechex($arr32[3])." TimeStamp(precise): 0x".dechex($arr32[2])."+".dechex($arr32[1])." $masterTime - ".gmdate(DATE_RFC850,$masterTime)." [local timestamp - ".gmdate(DATE_RFC850,$time)."]\n";
+          $subchannel = ($arr32[3] >> 24);
+          echo "Subchannel: <b>".$subchannel."</b> MasterTimeStamp: <b>".($masterTime+$timeShift)."</b> TimeStamp: <b>".($time+$timeShift)."</b>   MasterTimeStamp(precise): 0x".dechex($arr32[4])."+".dechex($arr32[3])." TimeStamp(precise): 0x".dechex($arr32[2])."+".dechex($arr32[1])." $masterTime - ".gmdate(DATE_RFC850,$masterTime)." [local timestamp - ".gmdate(DATE_RFC850,$time)."]\n";
           break;
 	// Show hex data
         case 3: print_r($arr32);
@@ -134,12 +136,17 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
       }
     }
   }
-  foreach ($averageIMU as $key=>$value) if ($key!='number') $averageIMU[$key]/=$averageIMU['number'];
-  print_r($averageIMU);
-echo "</pre>\n";
-  echo "<table>\n";
-  foreach ($averageIMU as $key=>$value) echo "<tr><td>$key</td><td>$value</td></tr>\n";
-  echo "</table>\n";
+  if ($averageIMU['number']>0) {
+		foreach ( $averageIMU as $key => $value )
+			if ($key != 'number')
+				$averageIMU [$key] /= $averageIMU ['number'];
+		print_r ( $averageIMU );
+		echo "</pre>\n";
+		echo "<table>\n";
+		foreach ( $averageIMU as $key => $value )
+			echo "<tr><td>$key</td><td>$value</td></tr>\n";
+		echo "</table>\n";
+  }
 }
 
 function parseGPS($sample){
