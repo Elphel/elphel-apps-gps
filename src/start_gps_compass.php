@@ -424,7 +424,7 @@ function init_default_config() {
 			'baud_rate' => 19200, // $rs232_div=80/2/$baud
 			'imu_slot' => 1,
 			'gps_slot' => 2,
-			'gps_mode' => 2, // 0 - pps pos, 1 - pps neg, 2 - start of first sesntence after pause, 3 start of sentence
+			'gps_mode' => 2, // 0 - pps pos, 1 - pps neg, 2 - start of first sentence after pause, 3 start of sentence
 			'msg_conf' => 6, // 10, // GPIO bit number for external (odometer) input (+16 - invert polarity). Timestamp uses leading edge, software may write to 56-byte buffer before the trailing edge
 			'img_sync' => 0xf, // enable logging image acquisition starts (0 - disable), bit per channel
 			'extra_conf' => 4, // 0 - config_long_sda_en, 1 -config_late_clk, 2 - config_single_wire, should be set for 103695 rev "A"
