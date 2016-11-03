@@ -310,7 +310,8 @@ function parseIMU ($arr32){
   $temperatureScale=0.00565; // C/LSB
   $t=($arr32[15] & 0xffff);
   if ($t>=32768) $t-=65536;
-  for ($i=3;$i<15;$i++) if (($arr32[$i] & 0x80000000)!=0) $arr32[$i]-=0x100000000;
+  for ($i=3;$i<15;$i++) if ((($arr32[$i] & 0x80000000)!=0) && ($arr32[$i] > 0)) $arr32[$i]-=0x100000000;
+  
   return array(
     "gyroX"=> $arr32[ 3]*$gyroScale,
     "gyroY"=> $arr32[ 4]*$gyroScale,
