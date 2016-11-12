@@ -14,6 +14,7 @@ SRCS =      nmea2exif.c log_imu.c
 OBJS =      nmea2exif.o
 PHPSCRIPTS= start_gps_compass.php
 PHPWEB=     logger_launcher.php imu_setup.php read_imu_log.php
+WEB=        read_imu_log.html read_imu_log.js
 
 CFLAGS   += -Wall -I$(STAGING_DIR_HOST)/usr/include-uapi
 LDLIBS   += -lm
@@ -33,6 +34,7 @@ install:	$(PROGS)
 	$(INSTALL) -m $(INSTMODE) -o $(INSTOWNER) -g $(INSTGROUP) $(PROGS) $(DESTDIR)$(BINDIR)
 	$(INSTALL) -m $(INSTMODE) -o $(INSTOWNER) -g $(INSTGROUP) $(PHPSCRIPTS) $(DESTDIR)$(BINDIR)
 	$(INSTALL) -o $(INSTOWNER) -m $(INSTDOCS) $(PHPWEB)  $(DESTDIR)$(WWW_PAGES)
+	$(INSTALL) -o $(INSTOWNER) -m $(INSTDOCS) $(WEB)  $(DESTDIR)$(WWW_PAGES)
 	$(INSTALL) $(OWN)-d $(DESTDIR)$(VARHTML)
 	$(LN) -sf $(VARHTML) $(DESTDIR)$(WWW_PAGES)var
 	$(INSTALL) $(OWN)-d $(DESTDIR)$(CONFDIR)
