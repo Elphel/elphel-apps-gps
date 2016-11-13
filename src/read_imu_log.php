@@ -112,9 +112,7 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
   global $timeShift;
   global $averageIMU;
   global $imuFieldOrder;
-  
-  $showAll=($nSamples<=100000);
-  
+    
   $gpsFilter= $filter&0xf;
   
   $typeFilter=(($gpsFilter!=0)?2:0) | ((($filter&0x10)!=0)?1:0) | ((($filter&0x20)!=0)?4:0) | ((($filter&0x20)!=0)?8:0);
@@ -134,7 +132,7 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
     
     if ((((1<<$type)&$typeFilter)!=0) && (($type!=1) || (((1<<$gps)&$gpsFilter)!=0))) {
     
-      if ($showAll) printf("%8d,%f,$type,",($record+$nSample),$time);
+      printf("%8d,%f,$type,",($record+$nSample),$time);
       
       switch ($type) {
         // IMU record
