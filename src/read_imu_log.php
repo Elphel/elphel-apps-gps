@@ -8,7 +8,7 @@
  * Copyright (C) 2016 Elphel, Inc.
  */
 
-$hardcodeddir = "logs/";
+$hardcodeddir = "logs";
  
 if (isset($_GET['format'])){
   $format = $_GET['format'];
@@ -40,7 +40,7 @@ if (isset($_GET['list'])){
 
 if (isset($_GET['file'])){
   if ($_SERVER['REMOTE_ADDR']!=$_SERVER['SERVER_ADDR']){
-    $file = $hardcodeddir.basename($_GET['file']);
+    $file = $hardcodeddir."/".basename($_GET['file']);
   }else{
     $file = $_GET['file'];
   }
@@ -49,8 +49,8 @@ if (isset($_GET['file'])){
     $numRecordsInFile=filesize($file)/64;
   }else{
     //this is for $_SERVER['REMOTE_ADDR']==$_SERVER['SERVER_ADDR'] 
-    if (is_file($hardcodeddir.$file)){
-      $file = $hardcodeddir.$file;
+    if (is_file($hardcodeddir."/".$file)){
+      $file = $hardcodeddir."/".$file;
       $numRecordsInFile=filesize($file)/64;
     }else{
       echo "File not found";
@@ -120,8 +120,8 @@ if ($format=="csv"){
 <tr><td>Filename</td><td>$file</td></tr>
 <tr><td>Found records</td><td>$numRecordsInFile</td></tr>
 <tr><td>Filter</td><td>$filterhex</td></tr>
-<tr><td>Start index</td><td>$record</td></tr>
-<tr><td>Start index</td><td>$file</td></tr>
+<tr><td>Start index</td><td>$sindex</td></tr>
+<tr><td>End index</td><td>$eindex</td></tr>
 </table>
 TEXT;
 }
@@ -514,10 +514,13 @@ function showlist(){
 
   global $hardcodeddir;
  
+  $local = true;
+ 
   if (isset($_GET['file'])) $file = $_GET['file'];
    
   if ($_SERVER['REMOTE_ADDR']!=$_SERVER['SERVER_ADDR']){
     $dir = $hardcodeddir;
+    $local = false;
   }else{
     if (!isset($file)||($file=="")){
       $dir = ".";
@@ -534,22 +537,24 @@ function showlist(){
       }
     }
   }
+  
   $files = scandir($dir);
-  if ($dir==".") $dir="";
-  else           $dir.="/";
+  
+  if ($dir=="."||(!$local)) $dirlink="";
+  else                      $dirlink="$dir/";
   
   $res = "";
   
   foreach($files as $f){
     if (($f[0]!=".")&&(!is_dir($dir.$f))) {
-      $res .= "<li><a href='#' class='filenamechanger'>$dir$f</a></li>\n";
+      $res .= "<li><a href='#' class='filenamechanger'>$dirlink$f</a></li>\n";
     }
   }
 
   $base = substr($_SERVER['SCRIPT_NAME'],0,strrpos($_SERVER['SCRIPT_NAME'],"/")+1);
   $base = $_SERVER['SERVER_NAME'].$base;
   
-  $res = "Log files list (<b><i>$base</i></b>, click to select):<ul>$res</ul>";
+  $res = "Log files list (<b><i>$base$dir</i></b>, click to select):<ul>$res</ul>";
   
   return $res;
   
@@ -694,7 +699,7 @@ function show(){
     // There was a connection error of some sort
   };
   
-  loading_interval = setInterval(loading,100);
+  loading_interval = setInterval(loading,500);
   request.send();
 }
 
@@ -793,6 +798,10 @@ var loading_interval;
 
 function loading(){
   console.log("loading");
+  var tmp = document.getElementById("csvlink").innerHTML;
+  if (tmp.length<2) tmp += ".";
+  else              tmp = "";
+  document.getElementById("csvlink").innerHTML = tmp;
 }
 
 TEXT;
