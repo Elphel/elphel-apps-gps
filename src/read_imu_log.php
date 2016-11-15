@@ -62,12 +62,6 @@ if (isset($_GET['file'])){
   $init = false;
 }
 
-if(!$nogui){
-  //list available files
-  echo html();
-  die(0);
-}
-
 if (isset($_GET['record']))   $record = $_GET['record']+0;
 else                          $record=0;
 
@@ -86,7 +80,8 @@ if ($nRecords>($numRecordsInFile-$record)) $nRecords= $numRecordsInFile-$record;
 if ($limit>0) $nRecords= $numRecordsInFile;
 
 if (isset($_GET['filter'])) $filter= intval($_GET['filter'],0);
-else                        $filter= 0x7f;
+else                        $filter= 0x3ff;
+
 /*
  1 - NMEA sentence 0 $GPRMC (log type 1)
  2 - NMEA sentence 1 $GPGGA (log type 1)
@@ -96,6 +91,12 @@ else                        $filter= 0x7f;
 32 - SYNC (type 2)
 64 - ODOMETER (type 3)
 */
+
+if(!$nogui){
+  //list available files
+  echo html();
+  die(0);
+}
 
 //$timeShift = 21600; // 6 hrs
 $timeShift = 0; // 0 hrs
@@ -556,13 +557,19 @@ function showlist(){
 
 function html(){
 
-  global $file;
+  global $file,$limit,$record,$nRecords;
   global $init;
 
   if ($init) {
-    $insert = $file;
+    $ins_file = $file;
+    $ins_limit = $limit;
+    $ins_rec = $record;
+    $ins_nrec = $_GET['nrecords']+$record;
   }else{
-    $insert = "imu.log";
+    $ins_file = "imu.log";
+    $ins_limit = 5000;
+    $ins_rec = 0;
+    $ins_nrec = 5000;
   }
   
   $js = js();
@@ -593,7 +600,7 @@ function html(){
       <td>
         <table>
         <tr>
-          <td>Filename: <input type='text' id='file' value='$insert' style='width:400px;' onchange='getRqStr()'>&nbsp;<button onclick='getList()'>List log files</button>&nbsp;&nbsp;</td>
+          <td>Filename: <input type='text' id='file' value='$ins_file' style='width:400px;' onchange='getRqStr()'>&nbsp;<button onclick='getList()'>List log files</button>&nbsp;&nbsp;</td>
         </tr>
         <tr>
           <td colspan=''>Record filter:&nbsp;
@@ -622,14 +629,14 @@ function html(){
             <table>
             <tr>
               <td></td>
-              <td>Begin</td><td><input id='start' type='text' value='0' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
+              <td>Begin</td><td><input id='start' type='text' value='$ins_rec' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
             </tr>
             <tr>
               <td></td>
-              <td>End</td><td><input id='end' type='text' value='5000' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
+              <td>End</td><td><input id='end' type='text' value='$ins_nrec' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
             </tr>
               <td><input type='checkbox' id='show_limit_toggle' checked onchange='getRqStr()'></td>
-              <td>Show limit</td><td><input id='limit' type='text' value='5000' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
+              <td>Show limit</td><td><input id='limit' type='text' value='$ins_limit' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
             </tr>
             </table>
           </td>
