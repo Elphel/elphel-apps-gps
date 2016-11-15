@@ -1,31 +1,70 @@
 <?php
+/*
+ * FILE NAME  : read_imu_log.php
+ * DESCRIPTION: parse imu log from Elphel 10393 (and 10353)
+ * VERSION: 1.0
+ * AUTHOR: Oleg K Dzhimiev <oleg@elphel.com>
+ * LICENSE: AGPL, see http://www.gnu.org/licenses/agpl.txt
+ * Copyright (C) 2016 Elphel, Inc.
+ */
+
+$hardcodeddir = "logs/";
+ 
+if (isset($_GET['format'])){
+  $format = $_GET['format'];
+}else{
+  $format = "html";
+}
+
+if (isset($_GET['limit'])){
+  $limit = $_GET['limit']+0;
+}else{
+  $limit = 0;
+}
+
+if (isset($_GET['nogui'])){
+  $nogui = true;
+}else{
+  $nogui = false;
+}
+
+if (isset($_GET['source'])){
+  show_source($_SERVER['SCRIPT_FILENAME']);
+  die(0);
+}
+
+if (isset($_GET['list'])){
+  echo help();
+  die(0);
+}
 
 if (isset($_GET['file'])){
-  if (is_file($_GET['file'])){
+  if ($_SERVER['REMOTE_ADDR']!=$_SERVER['SERVER_ADDR']){
+    $file = $hardcodeddir.basename($_GET['file']);
+  }else{
     $file = $_GET['file'];
+  }
+
+  if (is_file($file)){
     $numRecordsInFile=filesize($file)/64;
   }else{
-    echo "File not found";
-    die(0);  
+    //this is for $_SERVER['REMOTE_ADDR']==$_SERVER['SERVER_ADDR'] 
+    if (is_file($hardcodeddir.$file)){
+      $file = $hardcodeddir.$file;
+      $numRecordsInFile=filesize($file)/64;
+    }else{
+      echo "File not found";
+      die(0);
+    }
   }
+  $init = true;
 }else{
-  echo "<pre>\n";
-  echo <<<TEXT
-  Usage: <b>http://address/read_imu_log.php?file=..&record=..&nrecords=..&filter=..</b>
-      * <b>file</b> - absolute path to file
-      * <b>record</b> - starting record index, default = 0
-      * <b>nrecords</b> - number of records to parse, default = 5000
-      * <b>filter</b> - filter out types of displayed records:
-          0x10 - display imu records only
-          0x20 - display image records only
-          0x40 - display external trigger records only
-        for gps records:
-          0x01 - display NMEA GPRMC records (have coordinates)
-          0x02 - display NMEA GPGGA records (have coordinates)
-          0x04 - display NMEA GPGSA records
-          0x08 - display NMEA GPVTG records,
-        default = 0x7f (display everything)   
-TEXT;
+  $init = false;
+}
+
+if(!$nogui){
+  //list available files
+  echo html();
   die(0);
 }
 
@@ -44,6 +83,7 @@ else{
 
 if ($nRecords>($numRecordsInFile-$record)) $nRecords= $numRecordsInFile-$record;
 
+if ($limit>0) $nRecords= $numRecordsInFile;
 
 if (isset($_GET['filter'])) $filter= intval($_GET['filter'],0);
 else                        $filter= 0x7f;
@@ -63,11 +103,27 @@ $timeShift = 0; // 0 hrs
 $type=-1;
 $gpsType=-1;
 
-echo "Filename,$file\n";
-echo "Found Records,$numRecordsInFile\n";
-echo "Record filter,0x".dechex($filter)."\n";
-echo "Start index,$record\n";
-echo "End index,".($record+$nRecords)."\n\n";
+$filterhex = dechex($filter);
+$sindex = $record;
+$eindex = $record+$nRecords;
+
+if ($format=="csv"){
+  echo "<pre>Filename,$file\n";
+  echo "Found Records,$numRecordsInFile\n";
+  echo "Record filter,0x$filterhex\n";
+  echo "Start index,$sindex\n";
+  echo "End index,$eindex\n\n";
+}else{
+  echo <<<TEXT
+<table>
+<tr><td>Filename</td><td>$file</td></tr>
+<tr><td>Found records</td><td>$numRecordsInFile</td></tr>
+<tr><td>Filter</td><td>$filterhex</td></tr>
+<tr><td>Start index</td><td>$record</td></tr>
+<tr><td>Start index</td><td>$file</td></tr>
+</table>
+TEXT;
+}
 
 $log_file=fopen($file,'r');
 
@@ -112,14 +168,48 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
   global $timeShift;
   global $averageIMU;
   global $imuFieldOrder;
+  global $format,$limit;
     
   $gpsFilter= $filter&0xf;
   
   $typeFilter=(($gpsFilter!=0)?2:0) | ((($filter&0x10)!=0)?1:0) | ((($filter&0x20)!=0)?4:0) | ((($filter&0x20)!=0)?8:0);
   
-  fseek($handle,64*$record,SEEK_SET);
+  $skip_imu_cols = true;
+  $imu_cols_csv = "";
+  $imu_cols_html_header = "";
+  $imu_cols_html = "";
   
-  echo "Index,Timestamp,Type,".implode(",",$imuFieldOrder).",non-IMU data\n";
+  if ((($filter>>4)&0x1)==0x1) {
+    $skip_imu_cols = false;
+    $imu_cols_csv_header = implode(",",$imuFieldOrder).",";
+    for($i=0;$i<count($imuFieldOrder);$i++){
+      $imu_cols_html .= "<td></td>\n";
+      $imu_cols_html_header .= "<td align='left'><div style='width:170px'>{$imuFieldOrder[$i]}</div></td>\n";
+      $imu_cols_csv .= ",";
+    }
+  }
+  
+  fseek($handle,64*$record,SEEK_SET);
+
+  if ($format=="csv"){    
+    echo "Index,Timestamp,Type,{$imu_cols_csv_header}GPS NMEA Type,GPS NMEA Sentence,Sensor Port,Master Timestamp,Master Timestamp,EXT\n";
+  }else{
+    echo <<<TEXT
+<table>
+<tr>
+<td>Index</td>
+<td align='center'>Timestamp</td>
+<td align='center'><div style='width:50px;'>Type</div></td>
+TEXT;
+    echo $imu_cols_html_header;
+    echo "<td align='center'>Sensor Port</td>\n";
+    echo "<td align='center'><div style='width:180px;'>Master Timestamp</div></td>\n";
+    echo "<td align='center'><div style='width:200px;'>Master Timestamp</div></td>\n";
+    echo "<td align='center'><div style='width:100px;'>GPS NMEA Type</div></td>\n";
+    echo "<td align='center'><div style='width:100px;'>GPS NMEA Sentence</div></td>\n";
+    echo "<td>EXT</td>\n";
+    echo "</tr>\n";
+  }
   
   for ($nSample=0;$nSample<$nSamples;$nSample++) {
   
@@ -131,8 +221,18 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
     $gps=($type==1)?($arr32[3]&0x3):0xf; // any if it is not GPS sample
     
     if ((((1<<$type)&$typeFilter)!=0) && (($type!=1) || (((1<<$gps)&$gpsFilter)!=0))) {
-    
-      printf("%8d,%f,$type,",($record+$nSample),$time);
+      
+      $limit--;
+      if ($limit==-1){
+        break;
+      }
+      
+      if ($format=="csv"){
+        printf("%d,%f,$type,",($record+$nSample),$time);
+      }else{
+        echo "<tr>\n";
+        printf("<td>%d</td>\n<td>%f</td>\n<td align='center'>$type</td>\n",($record+$nSample),$time);
+      }
       
       switch ($type) {
         // IMU record
@@ -140,7 +240,15 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
 
           $imuSample=parseIMU($arr32);
           
-          echo implode(",",$imuSample)."\n";
+          if ($format=="csv"){
+            echo implode(",",$imuSample)."\n";
+          }else{
+            foreach($imuSample as $imus){
+            //for($i=0;$i<count($imuSample);$i++){
+              echo "<td>{$imus}</td>\n";
+            }
+            echo "</tr>\n";
+          }
           
           /*
           echo " [angleX]=>".$imuSample["angleX"]."     [angleY]=>".$imuSample["angleY"]."     [angleZ]=>".$imuSample["angleZ"].
@@ -155,23 +263,65 @@ function imuLogParse($handle,$record,$nSamples,$filter,$tryNumber=10000){
         case 1:
         
           $nmeaArray=parseGPS($sample);
-          $nmeaString = '$'.implode(",",$nmeaArray);
           
-          echo ",,,,,,,,,,,,,\"GPS (NMEA): ".$nmeaString."\"\n";
+          $nmeaString = '$'.implode(",",$nmeaArray);
+          $nmeaType = $nmeaArray[0];
+          
+          if ($format=="csv"){
+            echo "$imu_cols_csv,,,$nmeaType,\"".$nmeaString."\"\n";
+          }else{
+            echo "$imu_cols_html";
+            //for img
+            echo "<td></td>\n";
+            echo "<td></td>\n";
+            echo "<td></td>\n";
+            echo "<td align='center'>$nmeaType</td>\n<td>$nmeaString</td>\n";
+            echo "</tr>\n";
+          }
+          
           break;
           
         // Master (Sync) record
         case 2:
           $masterTime=(($arr32[3]&0xfffff)/1000000)+$arr32[4];
           $subchannel = ($arr32[3] >> 24);
-          echo ",,,,,,,,,,,,,\"Subchannel: <b>".$subchannel."</b> MasterTimeStamp: <b>".($masterTime+$timeShift)."</b> TimeStamp: <b>".($time+$timeShift)."</b>   MasterTimeStamp(precise): 0x".dechex($arr32[4])."+".dechex($arr32[3])." TimeStamp(precise): 0x".dechex($arr32[2])."+".dechex($arr32[1])." $masterTime - ".gmdate(DATE_RFC850,$masterTime)." [local timestamp - ".gmdate(DATE_RFC850,$time)."]\"\n";
+          
+          if ($format=="csv"){
+            printf("$imu_cols_csv$subchannel,%f,".(gmdate(DATE_RFC850,$masterTime))."\n",$masterTime);
+            //echo ",,,,,,,,,,,,,,,\"Subchannel: <b>".$subchannel."</b> MasterTimeStamp: <b>".($masterTime+$timeShift)."</b> TimeStamp: <b>".($time+$timeShift)."</b>   MasterTimeStamp(precise): 0x".dechex($arr32[4])."+".dechex($arr32[3])." TimeStamp(precise): 0x".dechex($arr32[2])."+".dechex($arr32[1])." $masterTime - ".gmdate(DATE_RFC850,$masterTime)." [local timestamp - ".gmdate(DATE_RFC850,$time)."]\"\n";
+          }else{
+            echo "$imu_cols_html";
+            
+            echo "<td align='center'>$subchannel</td>\n";
+            printf("<td>%f</td>\n",$masterTime);
+            echo "<td>".gmdate(DATE_RFC850,$masterTime)."</td>\n";
+          }
+          
+          
           break;
           
         // Show hex data
-        case 3: print_r($arr32);
+        case 3: 
+            $msg = "\"".implode(",",$arr32)."\"\n";
+            
+            if ($format=="csv"){
+              echo "$imu_cols_csv,,,,,$msg";
+            }else{
+              echo "$imu_cols_html";
+              echo "<td></td>\n";
+              echo "<td></td>\n";
+              echo "<td></td>\n";
+              echo "<td></td>\n";
+              echo "<td></td>\n";
+              echo "<td>$msg</td>\n";
+            }
+            
           break;
       }
     }
+  }
+  if ($format!="csv"){
+    echo "</table>\n";
   }
 }
 
@@ -358,5 +508,342 @@ eg3. $GPVTG,t,T,,,s.ss,N,s.ss,K*hh
 
 }
 */
+
+function showlist(){
+
+  global $hardcodeddir;
+ 
+  if (isset($_GET['file'])) $file = $_GET['file'];
+   
+  if ($_SERVER['REMOTE_ADDR']!=$_SERVER['SERVER_ADDR']){
+    $dir = $hardcodeddir;
+  }else{
+    if (!isset($file)||($file=="")){
+      $dir = ".";
+    }else{
+      if (is_dir($file)){
+        $dir = $file;
+      }else{
+        $path = pathinfo($file);
+        if (!isset($path['dirname'])){
+          $dir = $hardcodeddir;
+        }else{
+          $dir = $path['dirname'];
+        }
+      }
+    }
+  }
+  $files = scandir($dir);
+  if ($dir==".") $dir="";
+  else           $dir.="/";
+  
+  $res = "";
+  
+  foreach($files as $f){
+    if (($f[0]!=".")&&(!is_dir($dir.$f))) {
+      $res .= "<li><a href='#' class='filenamechanger'>$dir$f</a></li>\n";
+    }
+  }
+
+  $base = substr($_SERVER['SCRIPT_NAME'],0,strrpos($_SERVER['SCRIPT_NAME'],"/")+1);
+  $base = $_SERVER['SERVER_NAME'].$base;
+  
+  $res = "Log files list (<b><i>$base</i></b>, click to select):<ul>$res</ul>";
+  
+  return $res;
+  
+}
+
+function html(){
+
+  global $file;
+  global $init;
+
+  if ($init) {
+    $insert = $file;
+  }else{
+    $insert = "imu.log";
+  }
+  
+  $js = js();
+  return <<<TEXT
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="author" content="?"/>
+    <style>
+    #results td{
+      padding:0px 10px;
+    }
+    #results{
+      font-size:14px;
+    }
+    
+    #controls{
+      background: rgba(100,200,100,0.5);
+      padding: 10px;
+    }
+    </style>
+    <script>$js</script>
+  </head>
+  <body onload='init()'>
+    <table id='controls'>
+    <tr>
+      <td>
+        <table>
+        <tr>
+          <td>Filename: <input type='text' id='file' value='$insert' style='width:400px;' onchange='getRqStr()'>&nbsp;<button onclick='getList()'>List log files</button>&nbsp;&nbsp;</td>
+        </tr>
+        <tr>
+          <td colspan=''>Record filter:&nbsp;
+            <span title='External device'>EXT
+              <input id='filter_9' type='checkbox' checked onchange='getRqStr()'>
+            </span>&nbsp;&nbsp;
+            <span title='Image trigger signal'>IMG
+              <input id='filter_8' type='checkbox' checked onchange='getRqStr()' title='Sensor port 3'>
+              <input id='filter_7' type='checkbox' checked onchange='getRqStr()' title='Sensor port 2'>
+              <input id='filter_6' type='checkbox' checked onchange='getRqStr()' title='Sensor port 1'>
+              <input id='filter_5' type='checkbox' checked onchange='getRqStr()' title='Sensor port 0'>
+            </span>&nbsp;&nbsp;
+            <span title='IMU'>IMU
+              <input id='filter_4' type='checkbox' checked onchange='getRqStr()'>
+            </span>&nbsp;&nbsp;
+            <span title='GPS'>GPS
+              <input id='filter_3' type='checkbox' checked onchange='getRqStr()' title='NMEA GPVTG'>
+              <input id='filter_2' type='checkbox' checked onchange='getRqStr()' title='NMEA GPGSA'>
+              <input id='filter_1' type='checkbox' checked onchange='getRqStr()' title='NMEA GPGGA'>
+              <input id='filter_0' type='checkbox' checked onchange='getRqStr()' title='NMEA GPRMC'>
+            </span>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <table>
+            <tr>
+              <td></td>
+              <td>Begin</td><td><input id='start' type='text' value='0' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td>End</td><td><input id='end' type='text' value='5000' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
+            </tr>
+              <td><input type='checkbox' id='show_limit_toggle' checked onchange='getRqStr()'></td>
+              <td>Show limit</td><td><input id='limit' type='text' value='5000' style='width:100px;text-align:right;' onchange='getRqStr()'></td>
+            </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td><button onclick='show()'>Show records</button>&nbsp;&nbsp;<span id='csvlink'></span></td>
+        </tr>
+        </table>
+      </td>
+    </tr>
+    </table>
+    <div id='results'></div>
+  </body>
+</html>
+TEXT;
+}
+
+function js(){
+  global $init;
+
+  if ($init) $insert = "show();";
+  else       $insert = "";
+  
+  $help = help();
+  
+  return <<<TEXT
+function init(){
+  console.log("init");
+  document.getElementById("results").innerHTML = $help;
+  bindFilenameChangers();
+  $insert
+}
+
+function show(){
+  console.log("show");
+    
+  report("status: waiting for response");
+  
+  var rqstr = getRqStr();
+  
+  var request = new XMLHttpRequest();
+  request.open('GET', rqstr+"&nogui", true);
+
+  request.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {      
+      var resp = this.responseText;
+      report("status: parsing response");
+      clearInterval(loading_interval);
+      document.getElementById("results").innerHTML = "<br/>"+resp;
+      report("<a href='"+rqstr+"'>current view</a>, <a href='"+rqstr+"&nogui"+"&format=csv"+"'>csv</a>, <a href='"+rqstr+"&nogui"+"&format=html"+"'>html</a>");
+    }
+  };
+  
+  request.onerror = function() {
+    // There was a connection error of some sort
+  };
+  
+  loading_interval = setInterval(loading,100);
+  request.send();
+}
+
+function getList(){
+
+  var filename = document.getElementById("file").value;
+  var rqstr = "read_imu_log.php?list&nogui&file="+filename;
+  
+  var request = new XMLHttpRequest();
+  request.open('GET', rqstr, true);
+  
+  request.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {      
+      var resp = this.responseText;
+      document.getElementById("results").innerHTML = "<br/><span style='font-size:1.0em'>"+resp+"</span>";
+      bindFilenameChangers();
+    }
+  };
+  
+  request.onerror = function() {
+    // There was a connection error of some sort
+  };
+  
+  unbindFilenameChangers();
+  request.send();
+}
+
+function getRqStr(){
+  var filename = document.getElementById("file").value;
+  
+  var filter = 0;
+  for(var i=0;i<7;i++){
+    bit = (document.getElementById("filter_"+i).checked)?1:0;
+    filter += (bit<<i);
+  }
+  
+  var start = document.getElementById("start").value;
+  var end = document.getElementById("end").value;
+  
+  var limit = "";
+  
+  if (document.getElementById("show_limit_toggle").checked){
+    limit = "&limit="+document.getElementById("limit").value;
+  }
+  
+  var n = end - start;
+  
+  if (n<0) {
+    console.log("Error: Begin > End");
+    n = 1;
+  }
+  
+  var rqstr = "read_imu_log.php?file="+filename+"&record="+start+"&nrecords="+n+"&filter="+filter+limit;
+  
+  report("");
+  setTimeout(function(){
+    report("<a href='"+rqstr+"'>current view</a>, <a href='"+rqstr+"&nogui"+"&format=csv"+"'>csv</a>, <a href='"+rqstr+"&nogui"+"&format=html"+"'>html</a>");
+  },100);
+  
+  return rqstr;
+}
+
+function bindFilenameChangers(){
+
+  var elems = document.getElementsByClassName("filenamechanger");
+
+  for(var i=0;i<elems.length;i++){
+    elems[i].addEventListener("click", changeFilename);
+  }  
+}
+
+function unbindFilenameChangers(){
+
+  var elems = document.getElementsByClassName("filenamechanger");
+
+  for(var i=0;i<elems.length;i++){
+    elems[i].removeEventListener("click", changeFilename);
+  }  
+}
+
+function changeFilename(){
+  var file = this.innerHTML;
+  var elem = document.getElementById("file");
+  elem.value = file;
+
+  ev = document.createEvent('Event');
+  ev.initEvent('change', true, false);
+  elem.dispatchEvent(ev);
+}
+
+function report(msg){
+  document.getElementById("csvlink").innerHTML = msg;
+}
+
+var loading_interval;
+
+function loading(){
+  console.log("loading");
+}
+
+TEXT;
+}
+
+function help(){
+  global $nogui;
+
+  $logslist = showlist();
+  
+  $help = <<<TEXT
+  <span style='font-size:1.2em;'>$logslist</span>
+  <div style='font-size:1.2em;'>Usage:
+    <ul>
+      <li>GUI:
+        <ul>
+          <li><b>Filename</b> - path to file:<br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<i>remote != server address</i> - http://thisscriptrootpath/logs/filename<br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<i>remote == server address</i> - any relative/absolute path
+          </li>
+          <li><b>Checkboxes</b> - checked = show</li>
+          <li><b>Begin</b> - offset, record index in log</li>
+          <li><b>End</b> - offset, record index in log</li>
+          <li><b>Show limit</b> - Number of filtered records to show, if enabled overrides <b>End</b></li>
+          <li><b>current view, csv, html</b> - if any parameter changed a link to csv or html data is created/updated</li>
+        </ul>
+      </li>
+      <br/>
+      <li>URL (see <b><i>current view, csv, html</i></b>):
+        <ul>
+          <li>
+            <b>http://thisscriptrootpath/read_imu_log.php?file=..&record=..&nrecords=..&filter=..&limit=..&format=..</b><br/>
+            &nbsp;&nbsp;<b>file</b> - with path<br/>
+            &nbsp;&nbsp;<b>format</b> - accepts 'csv' or 'html'<br/>
+            &nbsp;&nbsp;<b>limit</b> - limit the displayed records<br/>
+            &nbsp;&nbsp;<b>record</b> - starting record index, default = 0<br/>
+            &nbsp;&nbsp;<b>nrecords</b> - number of records to parse, default = 5000<br/>
+            &nbsp;&nbsp;<b>filter</b> - filter out types of displayed records:<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;0x40 - display external trigger records only<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;0x20 - display image records only<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;0x10 - display imu records only<br/>
+            &nbsp;&nbsp;for gps records:<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;0x08 - display NMEA GPVTG records,<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;0x04 - display NMEA GPGSA records<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;0x02 - display NMEA GPGGA records (have coordinates)<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;0x01 - display NMEA GPRMC records (have coordinates)<br/>            
+            &nbsp;&nbsp;default = 0x7f (display everything)<br/>
+          </li>
+        </ul>
+      </li>
+      <li><a href="?source" >PHP source</a></li>
+    </ul>
+    </div>
+TEXT;
+
+  if (!$nogui) $help = "`<br/>$help`";
+  
+  return $help;
+}
 
 ?>
