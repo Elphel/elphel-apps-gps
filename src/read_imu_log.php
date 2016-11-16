@@ -1016,7 +1016,8 @@ function help(){
       </li>
       <li>Command line:
         <ul>
-          <li><i>~$ php $thisname logfile filter [filter] > output.csv</i></li>
+          <li><i>~$ php $thisname logfile [filter] > output.csv</i></li>
+          <li>cli help message: <i>~$ php $thisname</i></li>
         </ul>
       </li>
     </ul>
