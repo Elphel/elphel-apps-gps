@@ -1016,7 +1016,7 @@ function help(){
             &nbsp;&nbsp;&nbsp;&nbsp;0x004 - display NMEA GPGSA records<br/>
             &nbsp;&nbsp;&nbsp;&nbsp;0x002 - display NMEA GPGGA records (have coordinates)<br/>
             &nbsp;&nbsp;&nbsp;&nbsp;0x001 - display NMEA GPRMC records (have coordinates)<br/>            
-            &nbsp;&nbsp;default = 03ff (display everything)<br/>
+            &nbsp;&nbsp;default = 0x3ff (display everything)<br/>
           </li>
         </ul>
       </li>
