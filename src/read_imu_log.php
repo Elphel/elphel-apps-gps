@@ -32,8 +32,8 @@ Command line usage examples:
     \033[1;37m~$ php thisscript.php logfile > logfile.csv\033[0m
 * With a filter, IMU records only:
     \033[1;37m~~$ php thisscript.php logfile 0x010 > logfile.csv\033[0m
-* With a filter, GPS NMEA GPRMC records ony:
-    \033[1;37m~~$ php thisscript.php logfile 0x001 > logfile.csv\033[0m
+* With a filter, GPS NMEA GPRMC,GPGGA & IMU records only:
+    \033[1;37m~~$ php thisscript.php logfile 0x013 > logfile.csv\033[0m
 * Filter bits:
     External trigger source:
       0x200
@@ -61,6 +61,12 @@ TEXT
 $thisname = basename($_SERVER['SCRIPT_NAME']);
 $remoteaccess = ($_SERVER['REMOTE_ADDR']!=$_SERVER['SERVER_ADDR']);
 $hardcodeddir = "logs";
+
+if ($remoteaccess){
+  if(!is_dir($hardcodeddir)) {
+    mkdir($hardcodeddir);
+  }
+}
 
 if (isset($_GET['format'])){
   $format = $_GET['format'];
