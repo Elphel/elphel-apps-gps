@@ -38,14 +38,14 @@
 *!
 */
 
-include 'show_source.inc';
+include 'include/show_source_include.php';
 
 //default parameters
 $cmd = "start";
-$file = "/usr/html/CF/imu_log.log";
+$file = "/mnt/sda1/imu_log.log";
 $index = 1;
 $n = 5000000;
-$mount_point = "/usr/html/CF";
+$mount_point = "/mnt/sda1";
 $force_dev = false;
 
 
@@ -65,18 +65,16 @@ if (isset($_GET['dev'])) {
 }
 
 if ($cmd=="start") {
-
+	
     if (!is_dir($mount_point)) mkdir($mount_point);
 
     //detect devices
     //$dev = "/dev/hda1";
 
     if (!$force_dev) {
-	$hda1 = exec("cat /proc/diskstats | grep 'hda1'");
-	$hdb1 = exec("cat /proc/diskstats | grep 'hdb1'");
+	$sda1 = exec("cat /proc/diskstats | grep 'sda1'");
 
-	if      (strlen($hda1)>0) $dev = "/dev/hda1";
-	else if (strlen($hdb1)>0) $dev = "/dev/hdb1";
+	if      (strlen($sda1)>0) $dev = "/dev/sda1";
 	else {
 	  $xml .= "\t<error>CF cards not found</error>\n";
 	  send_response($xml);
@@ -84,7 +82,7 @@ if ($cmd=="start") {
     }
 
     exec("mount $dev $mount_point");
-    exec("/usr/local/bin/log_imu $file $index $n >/dev/null 2>&1 &");
+    exec("/usr/bin/log_imu $file $index $n >/dev/null 2>&1 &");
     $xml .= "\t<result>ok</result>\n";
 }
 
@@ -112,11 +110,11 @@ function send_response($xml){
 
 function _help(){
     echo "<pre>\n";
-    echo "Usage example: 'http://192.168.0.9/logger_launcher.php?file=/usr/html/CF/test.log&index=1&n=1000000&dev=/dev/hdb1', where\n";
+    echo "Usage example: 'http://192.168.0.9/logger_launcher.php?file=/mnt/sda1/test.log&index=1&n=1000000&dev=/dev/sda1', where\n";
     echo "'file'- log name (includes absolute path), '/usr/html/CF/' is the 'dev's mount point\n";
     echo "'index'- index added to the log name\n";
     echo "'n'- max number of records in a single log file\n";
-    echo "'dev'- device name: '/dev/hda1' or '/dev/hdb1'\n";
+    echo "'dev'- device name: '/dev/sda1'\n";
 }
 
 function _usage(){
