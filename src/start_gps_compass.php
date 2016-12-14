@@ -109,7 +109,7 @@ if (file_exists ( $config_name )) {
 		echo 'Reading IMU logger configuration from ' . $config_name . "\n";
 	$config_xml = simplexml_load_file ( $config_name );
 	$logger_config = loggerConfigFromXML ( $config_xml );
-} else if (isset ( $b_index [103696] ) || isset ( $b_index [103696] )) {
+} else if (isset ( $b_index [103696] ) || isset ( $b_index [103695] )) {
 	if ($verbose)
 		echo "Generating IMU logger configuration\n";
 		// $default_config=init_default_config();
