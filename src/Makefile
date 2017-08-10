@@ -1,4 +1,4 @@
-#TODO: pass $(LN) from bitbake 
+#TODO: pass $(LN) from bitbake
 LN = ln
 WWW_PAGES = /www/pages/
 BINDIR    = /usr/bin/
@@ -9,21 +9,27 @@ INSTDOCS =  0644
 INSTOWNER = root
 INSTGROUP = root
 
-PROGS     = nmea2exif log_imu
-SRCS =      nmea2exif.c log_imu.c
-OBJS =      nmea2exif.o
+PROGS     = nmea2exif log_imu garminusb2nmea garminusb2exif
+SRCS =      nmeagen.c exifgen.c garminusb2nmea.c garminusb2exif.c nmea2exif.c log_imu.c
+OBJS =      nmeagen.o exifgen.o garminusb2nmea.o garminusb2exif.o nmea2exif.o
 PHPSCRIPTS= start_gps_compass.php
 PHPWEB=     logger_launcher.php imu_setup.php read_imu_log.php
 
 CFLAGS   += -Wall -I$(STAGING_DIR_HOST)/usr/include-uapi
 LDLIBS   += -lm
- 
+
 all: $(PROGS)
 
 log_imu: log_imu.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 nmea2exif: nmea2exif.o
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+garminusb2nmea: garminusb2nmea.o nmeagen.o
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+garminusb2exif: garminusb2exif.o exifgen.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 install:	$(PROGS)
@@ -37,7 +43,7 @@ install:	$(PROGS)
 	$(LN) -sf $(VARHTML) $(DESTDIR)$(WWW_PAGES)var
 	$(INSTALL) $(OWN)-d $(DESTDIR)$(CONFDIR)
 	$(LN) -sf $(CONFDIR) $(DESTDIR)$(WWW_PAGES)etc
-	
+
 
 clean:
 	rm -rf $(PROGS) *.o *~
