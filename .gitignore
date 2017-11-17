@@ -13,5 +13,7 @@ bitbake-logs
 *.o
 image
 src/nmea2exif
+src/garminusb2exif                                                                                                                                                        
+src/garminusb2nmea
 src/log_imu
 src/.depend
