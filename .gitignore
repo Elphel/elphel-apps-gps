@@ -11,9 +11,13 @@ sysroots
 bitbake-logs
 /temp
 *.o
-image
 src/nmea2exif
 src/garminusb2exif                                                                                                                                                        
 src/garminusb2nmea
 src/log_imu
 src/.depend
+
+doxygen.tag
+/image
+/scripts
+/html
