@@ -17,6 +17,10 @@ src/garminusb2nmea
 src/log_imu
 src/.depend
 
+all_sources.lst
+excluding.lst
+including.lst
+
 doxygen.tag
 /image
 /scripts
