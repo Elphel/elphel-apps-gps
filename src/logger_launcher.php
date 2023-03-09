@@ -72,13 +72,13 @@ if ($cmd=="start") {
     //$dev = "/dev/hda1";
 
     if (!$force_dev) {
-	$sda1 = exec("cat /proc/diskstats | grep 'sda1'");
+    	$sda1 = exec("cat /proc/diskstats | grep 'sda1'");
 
-	if      (strlen($sda1)>0) $dev = "/dev/sda1";
-	else {
-	  $xml .= "\t<error>CF cards not found</error>\n";
-	  send_response($xml);
-	}
+	   if      (strlen($sda1)>0) $dev = "/dev/sda1";
+	   else {
+	       $xml .= "\t<error>CF cards not found</error>\n";
+	       send_response($xml);
+	   }
     }
 
     exec("mount $dev $mount_point");

@@ -375,7 +375,7 @@ function help() {
     </li>
   </ul>
 </p>
-<p>You may record the log to a file (i.e. on external USB stick or SSD/HDD) with teh following command:<br/>
+<p>You may record the log to a file (i.e. on external USB stick or SSD/HDD) with the following command:<br/>
 <b>cat /dev/imu &gt;<i>log-file-path</i></b></p>
 
 <p>Test logger and GPS:<br/>

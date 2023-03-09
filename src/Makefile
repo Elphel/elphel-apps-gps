@@ -12,7 +12,7 @@ INSTGROUP = root
 PROGS     = nmea2exif log_imu garminusb2nmea garminusb2exif
 SRCS =      nmeagen.c exifgen.c garminusb2nmea.c garminusb2exif.c nmea2exif.c log_imu.c
 OBJS =      nmeagen.o exifgen.o garminusb2nmea.o garminusb2exif.o nmea2exif.o
-PHPSCRIPTS= start_gps_compass.php
+PHPSCRIPTS= start_gps_compass.php start_ims.php
 PHPWEB=     logger_launcher.php imu_setup.php read_imu_log.php
 
 CFLAGS   += -Wall -I$(STAGING_DIR_HOST)/usr/include-uapi
